@@ -94,7 +94,7 @@ aws ec2 describe-images \
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Maintainers
-- Your Name or Team Name
+- Htoo Htoo <Devotee of Cloud and DevOps>
 
 ## Note
 Remember to update your AWS credentials and region settings before running the commands.

@@ -1,0 +1,21 @@
+# Global variables for all hosts
+playbook_dir: "$HOME"
+project_dir: "/opt/nginx-docker"
+nginx_port: 80
+company_name: "TechCorp Solutions"
+env_name: "production"  # Changed from 'environment' to avoid reserved name
+
+# Docker settings
+docker_compose_version: "3.8"
+nginx_image: "nginx:alpine"
+
+# Network settings
+domain_suffix: "company.local"
+# SSL settings (optional)
+# ssl_enabled: false
+# ssl_cert_path: "/etc/nginx/ssl/server.crt"
+# ssl_key_path: "/etc/nginx/ssl/server.key"
+
+# Logging
+log_level: "warn"
+access_log_format: "main"

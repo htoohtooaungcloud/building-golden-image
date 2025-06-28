@@ -1,0 +1,43 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+.terraform.lock.hcl
+terraform-plan.log
+
+# Packer
+packer_cache/
+*.pkrvars.hcl
+*.auto.pkrvars.hcl
+
+# Ansible
+*.retry
+*.pyc
+__pycache__/
+ansible.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.envrc
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Backup files
+*.bak
+*-bak
+*.backup

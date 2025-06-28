@@ -1,0 +1,24 @@
+services:
+  nginx:
+    image: nginx:latest  # Ubuntu-based, not Alpine
+    container_name: nginx-web
+    ports:
+      - "{{ nginx_port }}:80"
+    volumes:
+      - {{ project_dir }}/html:/usr/share/nginx/html:ro
+      - {{ project_dir }}/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - {{ project_dir }}/logs:/var/log/nginx
+      - {{ project_dir }}/ssl:/etc/nginx/ssl:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    restart: unless-stopped
+    environment:
+      - NGINX_HOST={{ server_name }}
+      - NGINX_PORT=80
+      - TZ={{ timezone | default('Asia/Singapore') }}
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge

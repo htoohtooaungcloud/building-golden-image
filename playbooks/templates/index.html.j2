@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ company_name | default('TechCorp Solutions') }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            margin: 2rem;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .logo {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+        }
+        
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin: 0;
+            flex-shrink: 1;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+            /* Added blinking animation */
+            animation: blinker 1.5s linear infinite; /* Adjust time and style as needed */
+        }
+
+        /* Keyframes for the blinking animation */
+        @keyframes blinker {
+            50% {
+                opacity: 0; /* Makes text disappear */
+                color: red; /* Changes color when invisible */
+            }
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .info-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .info-card h3 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-card p {
+            color: #6c757d;
+            font-weight: bold;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #28a745;
+            color: white;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+        
+        .footer {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem;
+                margin: 1rem;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQxIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I2ZmZDcwMDtzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojZmY4YzAwO3N0b3Atb3BhY2l0eToxIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9InVybCgjZ3JhZDEpIiAvPgogIDxwYXRoIGQ9Ik0zMCA3MEw1MCAzMEw3MCA3MEgzMFoiIGZpbGw9IiNmZmYiIC8+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTAiIGZpbGw9IiNmZmYiIC8+Cjwvc3ZnPg==" alt="GoldenImage.io Logo">
+            </div>
+            <h1>Welcome to {{ company_name | default('TechCorp Solutions') }}</h1>
+        </div>
+        <p class="subtitle">Your Application is running successfully!</p>
+        
+        <div class="status">🚀 Server Online</div>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>Server Name</h3>
+                <p>{{ server_name | default(ansible_hostname + '.local') }}</p>
+            </div>
+            
+            <div class="info-card">
+                <h3>Environment</h3>
+                <p>{{ env_name | default('production') | title }}</p>
+            </div>
+            
+            <div class="info-card">
+                <h3>Deployed By</h3>
+                <p>Ansible + Docker</p>
+            </div>
+            
+            <div class="info-card">
+                <h3>Timestamp</h3>
+                <p>{{ app_timestamp_output.stdout | default('Not Available') }}</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Deployed on {{ ansible_hostname | default('Unknown Host') }} using Ansible playbook</p>
+            <p>Container orchestrated with Docker Compose</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,321 @@
+---
+- name: Deploy Nginx with Docker Compose using Ansible (Packer Version)
+  hosts: default
+  become: true
+  gather_facts: true
+  vars:
+    project_dir: "/opt/nginx-docker"
+    nginx_port: 80
+    company_name: "GoldenImage.io"
+    deploy_env: "{{ env_name | default('production') }}"
+    timezone: "Asia/Singapore"
+    # Dynamic hostname configuration for Packer
+    hostname_prefix: "webserver"
+    hostname_suffix: "{{ ansible_date_time.epoch[-3:] }}"  # Last 3 digits of epoch time
+    dynamic_hostname: "{{ hostname_prefix }}{{ hostname_suffix }}"
+    server_name: "{{ dynamic_hostname }}.local"
+    
+  tasks:
+    - name: Create sudoers.d file for ubuntu user
+      copy:
+        content: |
+          # Allow ubuntu user to run sudo without password for automation
+          ubuntu ALL=(ALL) NOPASSWD:ALL
+        dest: /etc/sudoers.d/ubuntu
+        mode: '0440'
+        owner: root
+        group: root
+        validate: /usr/sbin/visudo -cf %s
+        
+    - name: Verify passwordless sudo works
+      command: whoami
+      become: true
+      become_user: root
+      register: sudo_test
+      failed_when: false
+      changed_when: false
+      
+    - name: Show verification result
+      debug:
+        msg: "Passwordless sudo is working! Current user: {{ sudo_test.stdout }}"
+        
+    - name: Check if servers are Ubuntu/Debian
+      fail:
+        msg: "This playbook only works on Ubuntu/Debian systems"
+      when: ansible_os_family != "Debian"
+
+    - name: Check current timezone
+      command: timedatectl show --property=Timezone --value
+      register: current_timezone
+      changed_when: false
+
+    - name: Display current timezone (before change)
+      debug:
+        msg: "Current system timezone is: {{ current_timezone.stdout }}"
+
+    - name: Set timezone to Asia/Singapore
+      timezone:
+        name: "{{ timezone }}"
+      register: timezone_change_result 
+
+    - name: Re-gather facts to update ansible_date_time
+      ansible.builtin.setup:
+      when: timezone_change_result.changed 
+
+    - name: Get formatted timestamp for application
+      command: date
+      register: app_timestamp_output
+      changed_when: false 
+
+    - name: Display timezone change status
+      debug:
+        msg: "Timezone {{ 'changed' if timezone_change_result.changed else 'already set correctly' }}"
+
+    # Generate dynamic hostname based on instance metadata or random
+    - name: Generate dynamic hostname
+      set_fact:
+        generated_hostname: "{{ hostname_prefix }}{{ '%03d' | format(ansible_date_time.epoch[-3:] | int) }}"
+
+    - name: Check current hostname
+      command: hostname
+      register: current_hostname
+      changed_when: false
+
+    - name: Display current hostname (before change)
+      debug:
+        msg: "Current hostname is: {{ current_hostname.stdout }}"
+
+    - name: Display generated hostname
+      debug:
+        msg: "Generated hostname will be: {{ generated_hostname }}"
+
+    - name: Set hostname to generated format
+      hostname:
+        name: "{{ generated_hostname }}"
+      register: hostname_change_result
+      when: current_hostname.stdout != generated_hostname
+
+    - name: Update /etc/hosts with new hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 {{ generated_hostname }} {{ generated_hostname }}.local"
+        backup: yes
+      when: hostname_change_result.changed
+
+    - name: Display hostname change status
+      debug:
+        msg: "Hostname {{ 'changed to ' + generated_hostname if hostname_change_result.changed else 'already set correctly to ' + current_hostname.stdout }}"
+
+    - name: Verify hostname change
+      command: hostname
+      register: new_hostname
+      changed_when: false
+      when: hostname_change_result.changed
+
+    - name: Show new hostname
+      debug:
+        msg: "New hostname is: {{ new_hostname.stdout }}"
+      when: hostname_change_result.changed
+    
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      register: apt_update_result
+      
+    - name: Show apt update results
+      debug:
+        msg: "Apt cache updated successfully"
+      when: apt_update_result is succeeded
+      
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      register: apt_upgrade_result
+      
+    - name: Show upgrade results
+      debug:
+        var: apt_upgrade_result
+        
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+      
+    - name: Notify if reboot is needed
+      debug:
+        msg: "*** REBOOT REQUIRED on {{ generated_hostname }} ***"
+      when: reboot_required.stat.exists
+
+    - name: Check if Docker is already installed
+      command: docker --version
+      register: docker_check
+      failed_when: false
+      changed_when: false
+
+    - name: Remove conflicting packages if Docker not installed
+      apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+        purge: yes
+      when: docker_check.rc != 0
+
+    - name: Install dependencies for Docker repository
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+        state: present
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      when: docker_check.rc != 0
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      when: docker_check.rc != 0
+
+    - name: Install Docker from official repository
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+      when: docker_check.rc != 0
+
+    - name: Install Docker Compose standalone (optional, as plugin is already installed)
+      get_url:
+        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-{{ ansible_architecture }}"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+        owner: root
+        group: root
+      tags: docker-compose-standalone
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create project directory
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create subdirectories
+      file:
+        path: "{{ project_dir }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - conf
+        - html
+        - logs
+        - ssl 
+
+    - name: Generate custom Nginx configuration
+      template:
+        src: "{{ playbook_dir }}/templates/nginx.conf.j2"
+        dest: "{{ project_dir }}/conf/nginx.conf"
+        mode: '0644'
+
+    - name: Generate custom index.html from Jinja2 template
+      template:
+        src: "{{ playbook_dir }}/templates/index.html.j2"
+        dest: "{{ project_dir }}/html/index.html"
+        mode: '0644'
+
+    - name: Create Docker Compose file
+      template:
+        src: "{{ playbook_dir }}/templates/docker-compose.yml.j2"
+        dest: "{{ project_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    - name: Deploy and Force Recreate Nginx containers with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_dir }}"
+        state: present
+        recreate: always
+        pull: always
+
+    - name: Test container timezone after deployment
+      command: docker exec nginx-web date
+      register: container_time
+      changed_when: false
+
+    - name: Compare host and container time
+      debug:
+        msg: |
+          Host time: {{ ansible_date_time.date }} {{ ansible_date_time.time }} {{ ansible_date_time.tz_offset }}
+          Container time: {{ container_time.stdout }}
+
+    - name: Check container timezone (Ubuntu compatible)
+      command: docker exec nginx-web sh -c "date +%Z && echo $TZ"
+      register: container_timezone_info
+      changed_when: false
+      failed_when: false
+
+    - name: Display container timezone info
+      debug:
+        msg: "Container timezone info: {{ container_timezone_info.stdout_lines }}"
+
+    - name: Verify timezone files exist in container
+      command: docker exec nginx-web ls -la /etc/localtime
+      register: timezone_file_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display timezone file status
+      debug:
+        msg: "Timezone file status: {{ timezone_file_check.stdout }}"
+
+    - name: Verify final timezone setting
+      command: timedatectl show --property=Timezone --value
+      register: final_timezone
+      changed_when: false
+
+    - name: Display final timezone status
+      debug:
+        msg: "Final system timezone is: {{ final_timezone.stdout }}"
+
+    - name: Display deployment completion message
+      debug:
+        msg: |
+          ====================================
+          🎉 DEPLOYMENT COMPLETED SUCCESSFULLY! 🎉
+          ====================================
+          ✅ Nginx containers have been restarted
+          ✅ Configuration files updated
+          ✅ Host timezone set to: {{ final_timezone.stdout }}
+          ✅ Hostname set to: {{ generated_hostname }}
+          🌐 Access your web server at: http://{{ ansible_default_ipv4.address }}:{{ nginx_port }}
+          📁 Project directory: {{ project_dir }}
+          ==========================================
